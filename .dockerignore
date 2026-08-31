@@ -1,0 +1,14 @@
+.venv
+venv
+env
+
+frontend/node_modules
+
+__pycache__
+*.pyc
+
+.git
+.gitignore
+.vscode
+
+*.ipynb_checkpoints
