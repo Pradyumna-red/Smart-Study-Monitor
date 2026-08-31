@@ -1,0 +1,5 @@
+/* Keep the real webcam image in its natural colors. */
+.camera-frame video {
+  opacity: 1;
+  filter: none;
+}
