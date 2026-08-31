@@ -6,13 +6,14 @@ import mediapipe as mp
 from ultralytics import YOLO
 
 
-LEFT_EYE_TOP = 159
-LEFT_EYE_BOTTOM = 145
-FACE_LEFT = 130
-FACE_RIGHT = 243
-
 SLEEP_WARNING_SECONDS = 1.5
 FACE_MISSING_WARNING_SECONDS = 1.5
+
+# MediaPipe Face Mesh eye landmarks
+LEFT_EYE = [33, 160, 158, 133, 153, 144]
+RIGHT_EYE = [362, 385, 387, 263, 373, 380]
+
+EYE_CLOSED_THRESHOLD = 0.20
 
 
 class StudyDetector:
@@ -34,11 +35,33 @@ class StudyDetector:
         self.eyes_closed_since = None
         self.face_missing_since = None
 
+    @staticmethod
+    def distance(point1, point2):
+        return (
+            (point1.x - point2.x) ** 2
+            + (point1.y - point2.y) ** 2
+        ) ** 0.5
+
+    def eye_aspect_ratio(self, landmarks, eye_indices):
+        p1, p2, p3, p4, p5, p6 = [
+            landmarks[index] for index in eye_indices
+        ]
+
+        vertical_1 = self.distance(p2, p6)
+        vertical_2 = self.distance(p3, p5)
+        horizontal = self.distance(p1, p4)
+
+        if horizontal == 0:
+            return 0.0
+
+        return (vertical_1 + vertical_2) / (2.0 * horizontal)
+
     def analyze(self, frame):
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         result = self.face_mesh.process(rgb)
 
         now = monotonic()
+
         face_detected = bool(result.multi_face_landmarks)
         sleepy = False
 
@@ -47,25 +70,19 @@ class StudyDetector:
 
             landmarks = result.multi_face_landmarks[0].landmark
 
-            top = landmarks[LEFT_EYE_TOP]
-            bottom = landmarks[LEFT_EYE_BOTTOM]
-
-            face_left = landmarks[FACE_LEFT]
-            face_right = landmarks[FACE_RIGHT]
-
-            eye_distance = ((top.x - bottom.x) ** 2 +
-                            (top.y - bottom.y) ** 2) ** 0.5
-
-            face_distance = ((face_left.x - face_right.x) ** 2 +
-                             (face_left.y - face_right.y) ** 2) ** 0.5
-
-            eye_ratio = (
-                eye_distance / face_distance * 100
-                if face_distance
-                else 100
+            left_ear = self.eye_aspect_ratio(
+                landmarks,
+                LEFT_EYE,
             )
 
-            if eye_ratio < 11.0:
+            right_ear = self.eye_aspect_ratio(
+                landmarks,
+                RIGHT_EYE,
+            )
+
+            average_ear = (left_ear + right_ear) / 2.0
+
+            if average_ear < EYE_CLOSED_THRESHOLD:
                 if self.eyes_closed_since is None:
                     self.eyes_closed_since = now
             else:
@@ -92,7 +109,8 @@ class StudyDetector:
         results = self.phone_detector.predict(
             frame,
             stream=True,
-            verbose=False
+            verbose=False,
+            conf=0.25,
         )
 
         for result in results:
@@ -100,9 +118,11 @@ class StudyDetector:
                 class_id = int(box.cls[0])
                 confidence = float(box.conf[0])
 
+                class_name = self.class_names[class_id]
+
                 if (
-                    self.class_names[class_id] == "cell phone"
-                    and confidence > 0.5
+                    class_name == "cell phone"
+                    and confidence >= 0.25
                 ):
                     phone_detected = True
                     break
@@ -113,15 +133,19 @@ class StudyDetector:
         if face_covered:
             event = "FACE NOT DETECTED"
             warning = "FACE NOT DETECTED"
+
         elif sleepy:
             event = "SLEEP WARNING"
             warning = "SLEEP WARNING"
+
         elif phone_detected:
             event = "PHONE DETECTED"
             warning = "PHONE DETECTED"
+
         elif face_detected:
             event = "FACE DETECTED"
             warning = None
+
         else:
             event = "FACE NOT DETECTED"
             warning = None
@@ -131,7 +155,11 @@ class StudyDetector:
             "face_covered": face_covered,
             "phone_detected": phone_detected,
             "sleepy": sleepy,
-            "focused": face_detected and not phone_detected and not sleepy,
+            "focused": (
+                face_detected
+                and not phone_detected
+                and not sleepy
+            ),
             "event": event,
             "warning": warning,
         }
