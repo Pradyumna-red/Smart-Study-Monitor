@@ -1,5 +1,8 @@
-const timestamp = () => new Date().toLocaleTimeString('en-GB', { hour12: false })
-const API_URL = 'http://127.0.0.1:8000'
+const timestamp = () =>
+  new Date().toLocaleTimeString('en-GB', { hour12: false })
+
+const API_URL = import.meta.env.VITE_API_URL
+
 const alarms = {
   'FACE NOT DETECTED': new Audio(`${API_URL}/audio/face`),
   'SLEEP WARNING': new Audio(`${API_URL}/audio/sleep`),
