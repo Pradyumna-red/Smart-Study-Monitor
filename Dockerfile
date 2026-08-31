@@ -5,6 +5,7 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y \
     libgles2 \
+    libgl1 \
     libxcb1 \
     libx11-6 \
     libxext6 \
