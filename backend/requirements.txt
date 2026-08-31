@@ -3,5 +3,5 @@ uvicorn[standard]
 python-multipart
 numpy
 opencv-python-headless
-mediapipe
+mediapipe==0.10.21
 ultralytics
