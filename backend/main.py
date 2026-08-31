@@ -23,7 +23,11 @@ app = FastAPI(title="Smart Study Monitor API")
 # CORS lets the Vite app on port 5173 call this API on port 8000 in the browser.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://smart-study-monitor-pearl.vercel.app",
+    ],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
