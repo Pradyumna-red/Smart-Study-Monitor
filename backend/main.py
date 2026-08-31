@@ -112,8 +112,11 @@ def monitor_status():
 async def analyze_frame(frame: UploadFile = File(...)):
     if not session["active"]:
         raise HTTPException(status_code=400, detail="Start monitoring before sending frames.")
-    if not frame.content_type or not frame.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Please upload an image frame.")
+    if frame.content_type not in {"image/jpeg", "image/png", "image/webp", "application/octet-stream"}:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported frame content type: {frame.content_type}"
+        )
 
     image_bytes = await frame.read()
     image_array = np.frombuffer(image_bytes, np.uint8)
